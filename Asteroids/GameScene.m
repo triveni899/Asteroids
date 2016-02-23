@@ -11,7 +11,7 @@
 @import AVFoundation;
 
 
-#define kNumAsteroids 15
+#define kNumAsteroids 30
 #define ASTEROID_SPEED 1
 
 int _lives;
@@ -22,6 +22,8 @@ int _lives;
     CMMotionManager *_motionManager;
     NSMutableArray *_asteroids;
     int _nextAsteroid;
+    int difficulty;
+    int timer;
     int score;
     double _nextAsteroidSpawn;
     NSMutableArray *_shipLasers;
@@ -71,7 +73,7 @@ int _lives;
 #pragma mark - TBD - Setup the asteroids
         _asteroids = [[NSMutableArray alloc] initWithCapacity:kNumAsteroids];
         
-        for (int i = 0; i < 15; ++i) {
+        for (int i = 0; i < kNumAsteroids; ++i) {
             SKSpriteNode *asteroid = [SKSpriteNode spriteNodeWithImageNamed:@"asteroid3"];
             asteroid.hidden = YES;
             [asteroid setXScale:0.5];
@@ -107,6 +109,8 @@ int _lives;
     for (SKSpriteNode *asteroid in _asteroids) {
         asteroid.hidden = YES;
     }
+    timer = 0;
+    difficulty = 0;
     _ship.hidden = NO;
     //reset ship position for new game
     _ship.position = CGPointMake(self.frame.size.width * 0.1, CGRectGetMidY(self.frame));
@@ -159,6 +163,11 @@ int _lives;
     
     /* Called when a touch begins */
     //1
+    
+    UITouch *touch = [[event allTouches] anyObject];
+    CGPoint touchLocation = [touch locationInView:touch.view];
+    
+    
     SKSpriteNode *shipLaser = [_shipLasers objectAtIndex:_nextShipLaser];
     _nextShipLaser++;
     if (_nextShipLaser >= _shipLasers.count) {
@@ -170,8 +179,12 @@ int _lives;
     shipLaser.hidden = NO;
     [shipLaser removeAllActions];
     
+    double slope = (touchLocation.y - shipLaser.position.y)/(touchLocation.x - shipLaser.position.x);
+    int destY = self.frame.size.height - touchLocation.y;//slope * (self.frame.size.width - shipLaser.position.x);
+
+    
     //3
-    CGPoint location = CGPointMake(self.frame.size.width, _ship.position.y);
+    CGPoint location = CGPointMake(self.frame.size.width, destY);
     SKAction *laserMoveAction = [SKAction moveTo:location duration:0.5];
     //4
     SKAction *laserDoneAction = [SKAction runBlock:(dispatch_block_t)^() {
@@ -189,7 +202,7 @@ int _lives;
 - (void)updateShipPositionFromMotionManager
 {
     CMAccelerometerData* data = _motionManager.accelerometerData;
-    if (fabs(data.acceleration.x) > 0.2) {
+    if (fabs(data.acceleration.x) > 0.1) {
         [_ship.physicsBody applyForce:CGVectorMake(0.0, 40.0 * data.acceleration.x)];
     }
 }
@@ -201,15 +214,20 @@ int _lives;
 -(void)update:(CFTimeInterval)currentTime {
     /* Called before each frame is rendered */
     
+    timer = (timer+1)%10000;
+    if(!timer){
+        difficulty++;
+    }
+    
     [self updateShipPositionFromMotionManager];
     double curTime = CACurrentMediaTime();
     if (curTime > _nextAsteroidSpawn)
     {
-        float randSecs = [self randomValueBetween:0.20 andValue:1.0];
+        float randSecs = [self randomValueBetween:0.40-difficulty andValue:1.5-difficulty];
         _nextAsteroidSpawn = randSecs + curTime;
         
         float randY = [self randomValueBetween:0.0 andValue:self.frame.size.height];
-        float randDuration = [self randomValueBetween:5.0 andValue:10.0];
+        float randDuration = [self randomValueBetween:10.0-difficulty andValue:15.0-difficulty];
         
         SKSpriteNode *asteroid = [_asteroids objectAtIndex:_nextAsteroid];
         _nextAsteroid = (_nextAsteroid+1) % _asteroids.count;
